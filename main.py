@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from typing import List
 import pandas as pd
 import joblib
+import uvicorn
+import os
 
 app = FastAPI()
 
@@ -85,30 +88,24 @@ poutcome_map={
 }
 
 month_map={
-"jan":1,
-"feb":2,
-"mar":3,
-"apr":4,
-"may":5,
-"jun":6,
-"jul":7,
-"aug":8,
-"sep":9,
-"oct":10,
-"nov":11,
-"dec":12
+    "jan":1,
+    "feb":2,
+    "mar":3,
+    "apr":4,
+    "may":5,
+    "jun":6,
+    "jul":7,
+    "aug":8,
+    "sep":9,
+    "oct":10,
+    "nov":11,
+    "dec":12
 }
 
 
-@app.get("/")
-def home():
-    return {"message":"Bank Marketing Prediction API Running"}
+def preprocess(data):
 
-
-@app.post("/predict")
-def predict(data:BankInput):
-
-    row={
+    return {
         "age":data.age,
         "job":job_map[data.job.lower()],
         "marital":marital_map[data.marital.lower()],
@@ -127,25 +124,47 @@ def predict(data:BankInput):
         "poutcome":poutcome_map[data.poutcome.lower()]
     }
 
-    df=pd.DataFrame([row])
 
+def make_prediction(df):
     transformed=scaler.transform(df)
+    predictions=model.predict(transformed)
+    probabilities=model.predict_proba(transformed)
+    results=[]
+    for i in range(len(predictions)):
+        results.append({
+            "prediction":"Will Subscribe" if predictions[i]==1 else "Will Not Subscribe",
+            "confidence":round(float(max(probabilities[i])),4)
+        })
+    return results
 
-    prediction=model.predict(transformed)[0]
 
-    confidence=max(model.predict_proba(transformed)[0])
-
-    result="Will Subscribe" if prediction==1 else "Will Not Subscribe"
-
+@app.get("/")
+def home():
     return {
-        "prediction":result,
-        "confidence":round(float(confidence),4)
+        "message":"Bank Marketing Prediction API Running"
     }
 
 
-import uvicorn
-import os
+@app.post("/predict")
+def predict(data:BankInput):
+    df=pd.DataFrame([preprocess(data)])
+    result=make_prediction(df)
+    return result[0]
 
-if __name__ == "__main__":
+
+@app.post("/predict-many")
+def predict_many(data:List[BankInput]):
+    rows=[]
+    for customer in data:
+        rows.append(preprocess(customer))
+    df=pd.DataFrame(rows)
+    result=make_prediction(df)
+    return {
+        "total_predictions":len(result),
+        "results":result
+    }
+
+
+if __name__=="__main__":
     port=int(os.environ.get("PORT",8000))
     uvicorn.run(app,host="0.0.0.0",port=port)
