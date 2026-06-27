@@ -141,6 +141,7 @@ def make_prediction(df):
 @app.get("/")
 def home():
     return {
+        "ok":True,
         "message":"Bank Marketing Prediction API Running"
     }
 
@@ -149,7 +150,10 @@ def home():
 def predict(data:BankInput):
     df=pd.DataFrame([preprocess(data)])
     result=make_prediction(df)
-    return result[0]
+    return {
+        "ok":True,
+        "results": result[0]
+    }
 
 
 @app.post("/predict-many")
@@ -160,6 +164,7 @@ def predict_many(data:List[BankInput]):
     df=pd.DataFrame(rows)
     result=make_prediction(df)
     return {
+        "ok":True
         "total_predictions":len(result),
         "results":result
     }
