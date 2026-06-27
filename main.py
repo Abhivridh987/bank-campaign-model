@@ -164,7 +164,7 @@ def predict_many(data:List[BankInput]):
     df=pd.DataFrame(rows)
     result=make_prediction(df)
     return {
-        "ok":True
+        "ok":True,
         "total_predictions":len(result),
         "results":result
     }
